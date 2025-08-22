@@ -1,20 +1,23 @@
 #include <advanced-machine-learning-2025_inferencing.h>
+#include <Arduino_APDS9960.h>
 
-static const float features[] = {
-    // copy raw features here (for example from the 'Live classification' page)
-    // see https://docs.edgeimpulse.com/docs/running-your-impulse-arduino
-};
+// Constants and globals
+#define FEATURE_MULTIPLIER 3 // Since we store R, G, B for each step
+static float features[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE * FEATURE_MULTIPLIER] = {0};
 
-/**
- * @brief      Copy raw feature data in out_ptr
- *             Function called by inference library
- *
- * @param[in]  offset   The offset
- * @param[in]  length   The length
- * @param      out_ptr  The out pointer
- *
- * @return     0
- */
+uint16_t r, g, b;
+
+// Function to sample color sensor in real time
+void sample_color_sensor() {
+    for (uint32_t i = 0; i < EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE; i++) {
+        APDS.readColor(r, g, b);
+        features[i * FEATURE_MULTIPLIER + 0] = (float)r;
+        features[i * FEATURE_MULTIPLIER + 1] = (float)g;
+        features[i * FEATURE_MULTIPLIER + 2] = (float)b;
+        delayMicroseconds(1000 * EI_CLASSIFIER_INTERVAL_MS);
+    }
+}
+
 int raw_feature_get_data(size_t offset, size_t length, float *out_ptr) {
     memcpy(out_ptr, features + offset, length * sizeof(float));
     return 0;
@@ -22,62 +25,45 @@ int raw_feature_get_data(size_t offset, size_t length, float *out_ptr) {
 
 void print_inference_result(ei_impulse_result_t result);
 
-/**
- * @brief      Arduino setup function
- */
-void setup()
-{
-    // put your setup code here, to run once:
+void setup() {
     Serial.begin(115200);
-    // comment out the below line to cancel the wait for USB connection (needed for native USB)
     while (!Serial);
     Serial.println("Edge Impulse Inferencing Demo");
+    if (!APDS.begin()) {
+        Serial.println("Error initializing APDS9960 sensor!");
+        while (1);
+    }
 }
 
-/**
- * @brief      Arduino main function
- */
-void loop()
-{
+void loop() {
     ei_printf("Edge Impulse standalone inferencing (Arduino)\n");
 
-    if (sizeof(features) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
-        ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",
-            EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, sizeof(features) / sizeof(float));
-        delay(1000);
-        return;
-    }
+    // Sample real-time color data
+    sample_color_sensor();
 
     ei_impulse_result_t result = { 0 };
-
-    // the features are stored into flash, and we don't want to load everything into RAM
     signal_t features_signal;
     features_signal.total_length = sizeof(features) / sizeof(features[0]);
     features_signal.get_data = &raw_feature_get_data;
 
-    // invoke the impulse
     EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false /* debug */);
     if (res != EI_IMPULSE_OK) {
         ei_printf("ERR: Failed to run classifier (%d)\n", res);
+        delay(1000);
         return;
     }
 
-    // print inference return code
-    ei_printf("run_classifier returned: %d\r\n", res);
     print_inference_result(result);
 
     delay(1000);
 }
 
 void print_inference_result(ei_impulse_result_t result) {
-
-    // Print how long it took to perform inference
     ei_printf("Timing: DSP %d ms, inference %d ms, anomaly %d ms\r\n",
             result.timing.dsp,
             result.timing.classification,
             result.timing.anomaly);
 
-    // Print the prediction results (object detection)
 #if EI_CLASSIFIER_OBJECT_DETECTION == 1
     ei_printf("Object detection bounding boxes:\r\n");
     for (uint32_t i = 0; i < result.bounding_boxes_count; i++) {
@@ -93,8 +79,6 @@ void print_inference_result(ei_impulse_result_t result) {
                 bb.width,
                 bb.height);
     }
-
-    // Print the prediction results (classification)
 #else
     ei_printf("Predictions:\r\n");
     for (uint16_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++) {
@@ -103,7 +87,6 @@ void print_inference_result(ei_impulse_result_t result) {
     }
 #endif
 
-    // Print anomaly result (if it exists)
 #if EI_CLASSIFIER_HAS_ANOMALY
     ei_printf("Anomaly prediction: %.3f\r\n", result.anomaly);
 #endif
@@ -124,5 +107,4 @@ void print_inference_result(ei_impulse_result_t result) {
                 bb.height);
     }
 #endif
-
 }

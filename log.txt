@@ -1,0 +1,28 @@
+Edge Impulse impulse runner v1.34.0
+[33m[SER][0m Connecting to /dev/ttyACM0
+[33m[SER][0m Serial is connected, trying to read config...
+[33m[SER][0m Retrieved configuration
+[33m[SER][0m Device is running AT command version 1.8.0
+[33m[SER][0m Started inferencing, press CTRL+C to stop...
+LSE
+Inferencing settings:
+	Interval: 1.00 ms.
+	Frame size: 3
+	Sample length: 1 ms.
+	No. of classes: 1
+Starting inferencing, press 'b' to break
+Starting inferencing in 2 seconds...
+Sampling...
+Can't allocate new thread
+Predictions (DSP: 0.063000 ms., Classification: 0.233000 ms., Anomaly: 0ms.): 
+#Regression results:
+    value: 49.299145
+Starting inferencing in 2 seconds...
+Sampling...
+Can't allocate new thread
+Predictions (DSP: 0.065000 ms., Classification: 0.233000 ms., Anomaly: 0ms.): 
+#Regression results:
+    value: 49.299145
+Starting inferencing in 2 seconds...
+Sampling...
+[33m[SER][0m Received stop signal, trying to stop inferencing... Press CTRL+C again to force quit.
